@@ -397,9 +397,10 @@ def track_vot(model, video, hp=None, mask_enable=False, refine_enable=False):
         if not isdir(video_path): makedirs(video_path)
         result_path = join(video_path, '{:s}_001.txt'.format(video['name']))
         with open(result_path, "w") as fin:
-            for x in regions:
-                fin.write("{:d}\n".format(x)) if isinstance(x, int) else \
-                        fin.write(','.join([vot_float2str("%.4f", i) for i in x]) + '\n')
+            pass #lbg
+            # for x in regions:
+            #     fin.write("{:d}\n".format(x)) if isinstance(x, int) else \
+            #             fin.write(','.join([vot_float2str("%.4f", i) for i in x]) + '\n')
     else:  # OTB
         video_path = join('test', args.dataset, name)
         if not isdir(video_path): makedirs(video_path)

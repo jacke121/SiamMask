@@ -4,15 +4,19 @@
 # Written by Qiang Wang (wangqiang2015 at ia.ac.cn)
 # --------------------------------------------------------
 import glob
+import os
+import time
+
 from tools.test import *
 
 parser = argparse.ArgumentParser(description='PyTorch Tracking Demo')
 
-parser.add_argument('--resume', default='', type=str, required=True,
+parser.add_argument('--resume',  type=str, default='../models/SiamMask_DAVIS.pth',
                     metavar='PATH',help='path to latest checkpoint (default: none)')
-parser.add_argument('--config', dest='config', default='config_davis.json',
+parser.add_argument('--config', dest='config', default='../experiments/siammask/config_davis.json',
                     help='hyper-parameter of SiamMask in json format')
-parser.add_argument('--base_path', default='../../data/tennis', help='datasets')
+# parser.add_argument('--base_path', default='../data/tennis', help='datasets')
+parser.add_argument('--base_path', default=r'E:\git_track\MBMD\model\train\mouse_error\JPEGImages', help='datasets')
 args = parser.parse_args()
 
 if __name__ == '__main__':
@@ -32,6 +36,7 @@ if __name__ == '__main__':
 
     # Parse Image file
     img_files = sorted(glob.glob(join(args.base_path, '*.jp*')))
+    # img_files = os.listdir(args.base_path)
     ims = [cv2.imread(imf) for imf in img_files]
 
     # Select ROI
@@ -40,7 +45,8 @@ if __name__ == '__main__':
     try:
         init_rect = cv2.selectROI('SiamMask', ims[0], False, False)
         x, y, w, h = init_rect
-    except:
+    except Exception as e:
+        print('selectROI',e)
         exit()
 
     toc = 0
@@ -50,11 +56,13 @@ if __name__ == '__main__':
             target_pos = np.array([x + w / 2, y + h / 2])
             target_sz = np.array([w, h])
             state = siamese_init(im, target_pos, target_sz, siammask, cfg['hp'])  # init tracker
+            print('init ok')
         elif f > 0:  # tracking
+            start=time.time()
             state = siamese_track(state, im, mask_enable=True, refine_enable=True)  # track
             location = state['ploygon'].flatten()
             mask = state['mask'] > state['p'].seg_thr
-
+            print('track time',time.time()-start)
             im[:, :, 2] = (mask > 0) * 255 + (mask == 0) * im[:, :, 2]
             cv2.polylines(im, [np.int0(location).reshape((-1, 1, 2))], True, (0, 255, 0), 3)
             cv2.imshow('SiamMask', im)
