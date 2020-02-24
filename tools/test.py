@@ -133,10 +133,10 @@ def generate_anchor(cfg, score_size):
     return anchor
 
 
-def siamese_init(im, target_pos, target_sz, model, hp=None):
+def siamese_init(frame, target_pos, target_sz, model, hp=None):
     state = dict()
-    state['im_h'] = im.shape[0]
-    state['im_w'] = im.shape[1]
+    state['im_h'] = frame.shape[0]
+    state['im_w'] = frame.shape[1]
     p = TrackerConfig()
     p.update(hp, model.anchors)
 
@@ -148,13 +148,13 @@ def siamese_init(im, target_pos, target_sz, model, hp=None):
     p.anchor_num = len(p.ratios) * len(p.scales)
     p.anchor = generate_anchor(model.anchors, p.score_size)
 
-    avg_chans = np.mean(im, axis=(0, 1))
+    avg_chans = np.mean(frame, axis=(0, 1))
 
     wc_z = target_sz[0] + p.context_amount * sum(target_sz)
     hc_z = target_sz[1] + p.context_amount * sum(target_sz)
     s_z = round(np.sqrt(wc_z * hc_z))
     # initialize the exemplar
-    z_crop = get_subwindow_tracking(im, target_pos, p.exemplar_size, s_z, avg_chans)
+    z_crop = get_subwindow_tracking(frame, target_pos, p.exemplar_size, s_z, avg_chans)
 
     z = Variable(z_crop.unsqueeze(0))
     net.template(z.cuda())

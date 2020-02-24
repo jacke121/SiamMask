@@ -15,10 +15,7 @@ parser.add_argument('--resume',  type=str, default='../models/SiamMask_DAVIS.pth
                     metavar='PATH',help='path to latest checkpoint (default: none)')
 parser.add_argument('--config', dest='config', default='../experiments/siammask/config_davis.json',
                     help='hyper-parameter of SiamMask in json format')
-# parser.add_argument('--base_path', default='../data/tennis', help='datasets')
-# parser.add_argument('--base_path', default=r'E:\git_track\MBMD\model\mouse', help='datasets')
 parser.add_argument('--base_path', default=r'D:\project\OctaveConv_pytorch\nn\track_pic', help='datasets')
-# parser.add_argument('--base_path', default=r'E:\git_track\MBMD\model\train\mouse_error\JPEGImages', help='datasets')
 args = parser.parse_args()
 
 if __name__ == '__main__':
@@ -36,47 +33,50 @@ if __name__ == '__main__':
 
     siammask.eval().to(device)
 
-    # Parse Image file
-    # img_files = sorted(glob.glob(join(args.base_path, '*.jp*')))
+    # cam = cv2.VideoCapture(r"rtsp://admin:sbdwl123@192.168.25.42:554/h264/ch1/main/av_stream")
+    cam = cv2.VideoCapture(0)
 
-    path = r"D:\project\OctaveConv_pytorch\nn\track_pic/"
-    img_files = os.listdir(path)
-    img_files.sort(key=lambda x: int(x.split('.')[0]))
+    index = 0
 
-    # img_files = os.listdir(args.base_path)
-    ims = [cv2.imread(path+imf) for imf in img_files]
-
-    # Select ROI
-    cv2.namedWindow("SiamMask", cv2.WND_PROP_FULLSCREEN)
+    ret, frame = cam.read()
     # cv2.setWindowProperty("SiamMask", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     try:
-        init_rect = cv2.selectROI('SiamMask', ims[0], False, False)
+        init_rect = cv2.selectROI('SiamMask', frame, False, False)
         x, y, w, h = init_rect
     except Exception as e:
         print('selectROI',e)
         exit()
 
     toc = 0
-    for f, im in enumerate(ims):
+    f=0
+    while True:
+        ret, frame = cam.read()
         tic = cv2.getTickCount()
         if f == 0:  # init
+            start=time.time()
             target_pos = np.array([x + w / 2, y + h / 2])
             target_sz = np.array([w, h])
-            state = siamese_init(im, target_pos, target_sz, siammask, cfg['hp'])  # init tracker
-            print('init ok')
+            state = siamese_init(frame, target_pos, target_sz, siammask, cfg['hp'])  # init tracker
+            print('init ok',time.time()-start)
         elif f > 0:  # tracking
             start=time.time()
-            state = siamese_track(state, im, mask_enable=True, refine_enable=True)  # track
+            if frame is None:
+                print("im is none")
+                continue
+            state = siamese_track(state, frame, mask_enable=True, refine_enable=True)  # track
             location = state['ploygon'].flatten()
             mask = state['mask'] > state['p'].seg_thr
-            print('track time',state['score'],time.time()-start)
-            im[:, :, 2] = (mask > 0) * 255 + (mask == 0) * im[:, :, 2]
-            cv2.polylines(im, [np.int0(location).reshape((-1, 1, 2))], True, (0, 255, 0), 3)
-            cv2.imshow('SiamMask', im)
+            score=state['score']
+            score=score[score > 0.5]
+            if len(score)>1:
+                print('track time', len(score), time.time() - start)
+                frame[:, :, 2] = (mask > 0) * 255 + (mask == 0) * frame[:, :, 2]
+                cv2.polylines(frame, [np.int0(location).reshape((-1, 1, 2))], True, (0, 255, 0), 3)
+            cv2.imshow('SiamMask', frame)
             key = cv2.waitKey(1)
-            print("index",f)
             # if key > 0:
             #     break
+        f+=1
 
         toc += cv2.getTickCount() - tic
     toc /= cv2.getTickFrequency()
